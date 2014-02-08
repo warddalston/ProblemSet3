@@ -70,4 +70,33 @@ BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals,data) #Use laply, with the a
 
 dim(BetaHats) #this is a 1000 by 6 matrix, as required.  
 
+### 4. Create a density plot for each of the 6 coefficients (each of which should have been estimated 1,000 times).  What does this distribution represent? 
 
+#Function for making multiple Density plots at once
+
+# This function plots the sampling distributions of beta coefficients from OLS models.  It uses the basic density() function to calculate the density.  THe plot size is limited to extend just beyond the minimum and maximum values in the density.  The x-axis is built to have exactly size tick marks, evently spaced between the minimum and maximum values.  The labels are the same for every plot (I couldn't figure out a general way to make the plots say "beta_0", beta_1, etc while still using expression!)
+
+#Input: x - a numeric vector
+
+#Output: A density plot
+
+#Author: Dalston G. Ward 
+
+CoefDistrPlotter <- function(x){
+  xmin <- min(density(x)$x) #this and the next line sets up the plot limit and tick marks
+  xmax <- max(density(x)$x)
+  plot(density(x),
+       xlim=c(xmin-abs(.1*xmin),xmax+abs(.1*xmax)), #just above and below the min and max! 
+       xaxt="n", #suppress the default axis so that I can make my own
+       main=expression(paste("Sampling distribution of ", beta)), #I wish I could figure out a way to loop over subscripts witout a bunch of if loops for this.  
+       xlab=expression(hat(beta)),
+       ylab="Kernal density"
+       )
+  AxisLabels <- round(seq(xmin,xmax,length.out=6),2) #sequence is perfect for axes, as evenly spaces from one number to another 
+  axis(1,at=AxisLabels)
+  return(NULL)
+}
+
+apply(BetaHats,2,CoefDistrPlotter) #apply it down the columns, should print size plots.  
+
+### 
