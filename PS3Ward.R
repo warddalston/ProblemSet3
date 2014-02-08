@@ -46,10 +46,6 @@ dim(Yvals) #check to make sure it has the required dimensions (it does!)
 
 ### 3. Run 1,000 regressions across all of this simulated data.  Have as the output a 1000 by 6 matrix of estimated regression coefficients. 
 
-this <- lm(Yvals[,1]~data[,,1])
-str(this)
-class(this[[1]]) #NUMERIC
-
 #Function for fitting and extracting coefficients from many models at once
 
 #Function fits a regression but returns only the coefficients.  Useful when one is fitting a large number of regressions of simulated data which is contained in an array, and is interested only in the distribution of the coefficients.  It uses the arguement "i" to index over the elements of the other arguements.  
@@ -67,7 +63,7 @@ CoefExtract <- function(i,Y,x){
 }
 
 BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals,data) #Use laply, with the argument to apply over as the index. (following Jacob's advice to Tommy on Facebook)
-
+colnames(BetaHats) <- as.character(0:(ncol(BetaHats)-1))
 dim(BetaHats) #this is a 1000 by 6 matrix, as required.  
 
 ### 4. Create a density plot for each of the 6 coefficients (each of which should have been estimated 1,000 times).  What does this distribution represent? 
@@ -82,7 +78,7 @@ dim(BetaHats) #this is a 1000 by 6 matrix, as required.
 
 #Author: Dalston G. Ward 
 
-CoefDistrPlotter <- function(x){
+CoefDistrPlotter <- function(x,i){
   xmin <- min(density(x)$x) #this and the next line sets up the plot limit and tick marks
   xmax <- max(density(x)$x)
   plot(density(x),
@@ -97,6 +93,57 @@ CoefDistrPlotter <- function(x){
   return(NULL)
 }
 
-apply(BetaHats,2,CoefDistrPlotter) #apply it down the columns, should print size plots.  
+apply(BetaHats,2,CoefDistrPlotter,) #apply it down the columns, should print size plots.  
 
-### 
+#These distributions represent the sampling distributions of the regression coefficients, beta_0 through beta_5.  
+
+### 5. Alter your code so that you now collect t-statistics for all 1,000 regressions for all siz coefficients.  
+
+#Function for fitting and extracting T-statistics from many models at once
+
+#Function fits a regression but returns only the coefficients.  Useful when one is fitting a large number of regressions of simulated data which is contained in an array, and is interested only in the distribution of the t-statistics.  It uses the arguement "i" to index over the elements of the other arguements.  
+
+#Input: i - a sequential vector from 1 to j, where j is the 3rd dimension length of x
+#       Y - a matrix of dim n by j of outcome values
+#       x - an array of data of dim n by k by j
+
+#Output: a matrix of t-statistics with dimensions j by k  
+
+#Author: Dalston G. Ward 
+
+TStatExtract <- function(i,Y,x){
+  mod <- lm(Y[,i]~x[,,i]) #fit a model.  We need to get some pieces out.  
+  coef <- mod[[1]] #First, extract the coefficients
+  SE <- sqrt(diag(vcov(mod))) #Second, the standard errors.  Recall, these are the square roots of the diagonal elements of the variance-covariance matrix.
+  Tstats <- coef/SE #Finally, the t-statistics.  Recall, these are simply the betas divided by the standard errors. 
+}
+
+Tstats <- laply(1:dim(data)[3],TStatExtract, Yvals,data) #Use laply, with the argument to apply over as the index. (following Jacob's advice to Tommy on Facebook)
+
+dim(Tstats) #this is a 1000 by 6 matrix, as required.  
+
+### 6. For the 1,000 regressions, calculate how many t-statistics are statistically "significant" (p<=.05) for each variable.  (Make sure you use the right degrees of freedom).  Discuss. 
+
+# Function to check how many t-statistics are statistically significant.
+
+#This function calculates the critical values for a two tailed t-test based on user supplied probabilities.  Defaults to p=c(0.025,0.975), or in other words, a test of significance at the .05 level.  
+
+SignificanceChecker <- function(x,n,k,p=c(.025,.975)){
+  CritValue <- qt(p,n-k-1) #calculate the critical values
+  if(length(CritValue)==2){ #for two-tailed tests. 
+  SignifTest <- ifelse(CritValue[1] >= x | x >= CritValue[2],TRUE,FALSE) #compare the T-stats to the critical values.  If a statistic is smaller than the lower critical bound or larger than the upper critical bound, it is signifiacnt, and TRUE is recorded.  Otherwise, FALSE is recorded.  
+  }
+if(length(CritValue)==1 && CritValue < 0){ # for lower tail tests. 
+  SignifTest <- ifelse(CritValue >= x,TRUE,FALSE)
+  }
+if(length(CritValue)==1 && CritValue > 0){ # for upper tail tests. 
+  SignifTest <- ifelse(CritValue <= x,TRUE,FALSE)
+}
+  sum(SignifTest) #just figure out how many trues, and return.  
+}
+
+apply(Tstats,2,SignificanceChecker,20,5) #apply it down the columns.  n=20 because there are 20 observations per regression, and k=5 becuase there are 5 coefficients (not counting the intercept!).
+
+# I see that 1000 out of 1000 coefficient estimates are significantly different than zero for variables 1,2, and 4.  In contrast, I see that only 202 and 40 coefficients are significantly different than zero for variables 3 and 5, respectively.  This is intuitive: recall, we know the true data generating process for the outcome variable.  The X values, which are random draws from a Poisson distribution, were multiplied by the Beta vector c(1,2,0,4,0), to generate the outcome variables.  Thus, we should not expect the coefficient on variables 3 and 5 to be significantly different from zero, because we know the true value of the parameter to be zero! In contrast, we should definitely expect variabels 1,2, and 4 to be significantly different from zero! 
+
+#Furthermore, that we see around 5% of coefficients for variables (intercept), 3, and 5 are significantly different from zero is also not surprising.  The definition of a p value is "the probablity of obtaining a test statistic at least as large in absolute value as the observed test statistic, given that the null hypothesis is true" (Gerber and Green, 2012, page 64).  Our critical values lead us to accept as significant only those test statistics which generate a p-value of .05 or less.  However, these p value of .05 or less mean that there is still a 1 in 20 chance of observing such a test statistic when the null hypothesis is true.  In this case, we know that the null hypothesis is true, and thus observing these 5% (or 1 in 20!) test statistics that are significant is merely an artifact of our null-hypothesis testing procedure.  
