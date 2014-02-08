@@ -12,8 +12,13 @@ set.seed(1801)
 # Section A: Sampling Distributions and P-Values
 
 # 1. Make a three dimensional array with dim=c(20,5,100) and fill it with random data.
+
 filler <- rpois(20*5*1000,10) #The random data is sampled from a Poisson Distribution
 data <- array(filler,dim=c(20,5,1000)) # It is then stuck into an array of appropriate size
 rm(filler) #remove the filler data, just to keep the workspace clean
 
+# Make a function to create Y values (for a linear model).  THe Y values shoudl be a linear combination of the X's plus some normally distributed error.  The output should be a 20 by 1000 array. 
 
+Beta <- matrix(c(1,2,0,4,0),ncol=1) # as given by Jacob
+
+# Y value Generator 
