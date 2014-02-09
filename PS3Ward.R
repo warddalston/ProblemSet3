@@ -173,7 +173,8 @@ OriginalTimeDist <- replicate(200,system.time(laply(1:dim(data)[3],CoefExtract, 
 ParallelTimeDist <- replicate(200,system.time(BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals,data, .parallel=TRUE))[3])
 
 #Compare the average times:
-mean(OriginalTimeDist)-mean(ParallelTimeDist) # I estimate that parallel processing is about 0.308 seconds faster than normal processing
+TimeDiffBar <- mean(OriginalTimeDist)-mean(ParallelTimeDist) 
+cat("I estimate that parallel processing is about", TimeDiffBar, "seconds faster than normal processing","\n")
 
 #Is this difference significant?  Run a t-test. 
 t.test(OriginalTimeDist,ParallelTimeDist) #Both with and without assuming equal variance, it seems that parallel is significantly faster than normal.
