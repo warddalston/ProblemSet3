@@ -10,6 +10,9 @@ setwd("~/Documents/WashU 2nd Year/Applied Stats Programming/Feb 6/PS3/ProblemSet
 set.seed(1801)
 #Fourth, load necessary libraries:
 library(plyr)
+library(doMC)
+library(multicore)
+library(foreach)
 
 ###### Section A: Sampling Distributions and P-Values #####
 
@@ -63,7 +66,6 @@ CoefExtract <- function(i,Y,x){
 }
 
 BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals,data) #Use laply, with the argument to apply over as the index. (following Jacob's advice to Tommy on Facebook)
-colnames(BetaHats) <- as.character(0:(ncol(BetaHats)-1))
 dim(BetaHats) #this is a 1000 by 6 matrix, as required.  
 
 ### 4. Create a density plot for each of the 6 coefficients (each of which should have been estimated 1,000 times).  What does this distribution represent? 
@@ -147,4 +149,41 @@ apply(Tstats,2,SignificanceChecker,20,5) #apply it down the columns.  n=20 becau
 # I see that 1000 out of 1000 coefficient estimates are significantly different than zero for variables 1,2, and 4.  In contrast, I see that only 61 and 48 coefficients are significantly different than zero for variables 3 and 5, respectively.  This is intuitive: recall, we know the true data generating process for the outcome variable.  The X values, which are random draws from a Poisson distribution, were multiplied by the Beta vector c(1,2,0,4,0), to generate the outcome variables.  Thus, we should not expect the coefficient on variables 3 and 5 to be significantly different from zero, because we know the true value of the parameter to be zero! In contrast, we should definitely expect variables 1,2, and 4 to be significantly different from zero, becuase the true values of these coefficients are not zero (they are, instead, 1,2, and 4).
 
 # Furthermore, that we see around 5% of coefficients for variables (intercept), 3, and 5 are significantly different from zero is also not surprising.  The definition of a p value is "the probablity of obtaining a test statistic at least as large in absolute value as the observed test statistic, given that the null hypothesis is true" (Gerber and Green, 2012, page 64).  Our critical values lead us to accept as significant only those test statistics which generate a p-value of .05 or less.  However, these p value of .05 or less mean that there is still a 1 in 20 chance of observing such a test statistic when the null hypothesis is true.  In this case, we know that the null hypothesis is true, and thus observing these 5% (or 1 in 20!) test statistics that are significant is merely an artifact of our null-hypothesis testing procedure.  
+
+### 7. Re-run that code in parallel. Using the system.time command, estimate how much time is saved (or not) using the parallel commmand.  
+
+#Per Jacob's instructions on Facebook, we can rerun any section of out code.  I'll re-run my code for extracting the coefficient vector from a regression.  
+
+#For reference, I time my original code:
+OriginalTime <- system.time(BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals,data))
+
+
+#Now, I run it in parallel
+registerDoMC(cores=4) # I have a 4 core machine.  (Finally figured this out using activity monitor!)
+ParallelTime <- system.time(BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals, data, .parallel=TRUE))
+
+#compare the two times
+OriginalTime;ParallelTime 
+
+# we see that the user and system times are both higher for the parallel run, but that the elapsed time is actually lower for parallel. MY real time gain estimate is be about .02 seconds.  I re-run these commands several times to get a distribution of times for parallel and non-parallel. 
+
+####### Note: the next two lines take about 3 minutes each to run! ######
+OriginalTimeDist <- replicate(200,system.time(laply(1:dim(data)[3],CoefExtract, Yvals,data))[3])
+
+ParallelTimeDist <- replicate(200,system.time(BetaHats <- laply(1:dim(data)[3],CoefExtract, Yvals,data, .parallel=TRUE))[3])
+
+#Compare the average times:
+mean(OriginalTimeDist)-mean(ParallelTimeDist) # I estimate that parallel processing is about 0.308 seconds faster than normal processing
+
+#Is this difference significant?  Run a t-test. 
+t.test(OriginalTimeDist,ParallelTimeDist) #Both with and without assuming equal variance, it seems that parallel is significantly faster than normal.
+
+#A boxplot helps show these differences.  
+boxplot(OriginalTimeDist,ParallelTimeDist,names=c("Normal","Parallel"),main="Box Plot of System Time distributions",ylab="Elapsed Time",horizontal=TRUE) #Not only do we have further evidence that parallel is faster, but it seems that the variance in elapsed times is lower with parallel processing.  
+
+###### Section B: Calculating Fit Statistics ######
+
+
+
+
 
