@@ -250,7 +250,7 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) #
 
 ### 2. Write a funciton that takes as arguments (1) a vector of "true observed outcomes (y), (2) a matrix of predictions (P), and a vector of naive forecasts (r).  The Matrix should be organized so that each column represents a single forecasting model and the rows correspond with each observation being predicted. The function should output a matrix where each column corresponds with one of the above fit statistics and each row corresponds to a model.  
 
-# I begin this problem by defining error calculting functions 
+# I begin this problem by defining error calculting functions and fit statistic calculating functions 
 
 # Function to calculate the absolute error of a prediciton
 
@@ -260,26 +260,121 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) #
 #       y a vector of observed values of length n
 #       na.rm=TRUE: a logicial, indicating whether or not NA's in the prediction vector should be included in the final output or should be dropped. 
 
-#output: a vector of errors of length n
+#output: a vector of errors of length n minus any NA's in p and y when N (or length n when na.rm=FALSE)
 
 #Author: Dalston G. Ward 
 
 AbsError <- function(p,y,na.rm=TRUE){
   if(na.rm==TRUE){
-    p2 <- p[!is.na(p)]
-    y2 <- y[!is.na(p)]
-    abs(p2-y2)
+    p2 <- p[!is.na(p) & !is.na(y)] #subset out the missing values from both the predictions and observed values
+    y2 <- y[!is.na(p) & !is.na(y)]
+    abs(p2-y2) # and calculate the error. 
   } else {
-  mapply(function(x,y){ifelse(is.na(x),NA,abs(x-y))},p,y) #this line is a mess!  It checks to see if the value in p is missing, and if it is, it codes this as NA.  If it isn't missing, it calculates the error as appropriate.  
+    #This little function calculates the errors or reports an NA as appropriate. 
+    ErrorWithNaCalculator <- function(x,y){ 
+      ifelse(is.na(x) | is.na(y),NA,abs(x-y))
+    }
+  mapply(ErrorWithNaCalculator,p,y) #Applies the above function to the data as appropriate.  
   }
 }
 
-sum(is.na(p))
-sum(is.na(y))
-length(is.na(AbsError(P[,1],Y,na.rm=FALSE)))
+length(is.na(AbsError(P[,1],Y,na.rm=TRUE)))
 
-sum(is.na(StepData[,"voteshare"]))
+#Function to calculate the absolute percentage error
 
+#This function calculates the absolute percentage error for a model's predictions in relation to the observed y values.  It does this according to the formula a= |p-y|/|y|*100, where a is the absolute percentage error, p the predictions, and y the observed values.
+
+#input: p a vector of predictions of length n
+#       y a vector of observed values of length n
+#       na.rm=TRUE: a logicial, indicating whether or not NA's in the prediction vector should be included in the final output or should be dropped. 
+
+#output: a vector of errors of length n minus any NA's in p and y when N (or length n when na.rm=FALSE)
+
+#Author: Dalston G. Ward 
+
+AbsPercentError <- function(p,y,na.rm=TRUE){
+  if(na.rm==TRUE){
+    e <- AbsError(p,y,na.rm=TRUE) #make use of the function written above to calculate absolute errors, e (and to subset out all of those missing values) 
+    e/abs(y[!is.na(p) & !is.na(y)])*100 
+  } else {
+    e <- AbsError(p,y,na.rm=FALSE)
+    
+    #This little function calculates the errors or reports an NA as appropriate. 
+    ErrorWithNaCalculator <- function(x,y){ 
+      ifelse(is.na(x) | is.na(y),NA,e/abs(y)*100)
+    }
+    mapply(ErrorWithNaCalculator,e,y) #Applies the above function to the data as appropriate.  
+  }
+}
+
+
+#Function to calculate the RMSE (root mean squared error)
+
+#This function calculates the root mean squared error of a set of predictions in comparison to the true values of y.  It does this according to the formuala sqrt(sum(e)^2/n) where e is the absolute error and n is the number of observations.  
+
+#input: e a vector of absolute errors
+
+#output: a scalar value
+
+#Author: Dalston G. Ward
+
+RMSE <- function(e){
+  sqrt(sum(e^2,na.rm=TRUE)/length(e[!is.na(e)]))
+}
+
+#Function to calculate the RMSLE (root mean squared log error)
+
+##This function calculates the root mean squared error of a set of predictions in comparison to the true values of y.  It does this according to the formuala sqrt(sum((log(p+1)-log(y+1))^2)/n) where p is the predicted value, y is the observed outcome, and n is the number of observations.  
+
+#input: p a vector of predicted values 
+#       y a vector of observed outcomes 
+
+#output: a scalar value
+
+#Author: Dalston G. Ward
+
+RMSLE <- function(p,y){
+  p2 <- p[!is.na(p) & !is.na(y)] #subset out the missing values from both the predictions and observed values
+  y2 <- y[!is.na(p) & !is.na(y)]
+  LogError <- abs(log(p2+1)-log(y2+1)) # and calculate the error.
+  sqrt(sum(LogError^2)/length(LogError))
+}
+
+#Function to calculate the MAPE (Mean absolute percentage error)
+
+#This function calculates the mean absolute percentage error for a set of predictions from a model in comparison to the observed y values.  It does this according to the formula sum(a)/n where a is the absolute percentage error, and n is number of predictions.  
+
+#input: a: a vector of absolute percentage errors
+
+#output: a scalar value
+
+#Author: Dalston G. Ward
+
+MAPE <- function(a){
+  sum(a,na.rm=TRUE)/length(a[!is.na(a)])
+}
+
+#Function to calculate MRAE (median relative absolute error)
+
+#This function calculates the median relative absolute error for a set of predictions from a model relative to the errors from the naive predictions.  It does this by calculating median of the relative error, given by the formula e/b, where e is the absolute error, and b is the naive error.
+
+#input: e: a vector of absolute errors
+#       b: a vector of naive errors
+
+#output: a scalar value
+
+#Author: Dalston G. Ward
+
+MRAE <- function(e,b){
+  REs <- e[!is.na(e) & !is.na(b)]/b[!is.na(e) & !is.na(b)]
+  median(REs)
+}
+
+#This function calculates several fit statistics for multiple models at once.  
+
+FitStatistics <- function(y,P,r,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE")){
+  
+}
 #Create the necessary inputs:
 Y <- TestingSet[,"voteshare"]
 P <- cbind(PredMod1,PredMod2,PredMod3)
