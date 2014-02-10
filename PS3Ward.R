@@ -13,6 +13,7 @@ library(plyr)
 library(doMC)
 library(multicore)
 library(foreach)
+library(lme4)
 
 ###### Section A: Sampling Distributions and P-Values #####
 
@@ -199,5 +200,35 @@ TestingSet <- StepData[-Training,] #everything that isn't training is testing.
 
 nrow(TrainingSet)+nrow(TestingSet) #Check that every observation of the origninal 6687 ended up in one of the two data sets.  Looks good.  
 any(identical(rownames(TrainingSet),rownames(TestingSet))) #Further proof of a successful partition: there are no identical row names in the two data sets.  
+
+#Now, fit at least three statistical models. 
+
+#First, an OLS with a year fixed effect.  
+mod.1 <- lm(voteshare~inparty+population+urban+seniority+chalquality+south,data=TrainingSet)
+summary(mod.1)
+summary(predict(mod.1,newdata=TestingSet))
+
+#Second, a quasibinomial GLM
+mod.2 <- glm(voteshare~inparty+population+urban+seniority+chalquality+south,data=TrainingSet,family=quasibinomial)
+summary(mod.2)
+summary(predict(mod.2,newdata=TestingSet,type="response"))
+
+#Third, an OLS with a logit transformed response
+
+#Logit and inverse logit function
+
+#These two functions allow one to quickly apply and unapply the logit transformation to a vector
+
+#input: a vector
+#output: a vector of equal length
+
+#Author: Julien J. Faraway in "Linear Models with R", Chapman & Hall/CRC, 2005. 
+logit <- function(x) log(x/(1-x))
+ilogit <- function(x) exp(x)/(1+exp(x))
+
+#Now that the funcitons are appropriately defined and documented, run the model.  
+mod.3 <- lm(logit(voteshare)~inparty+population+urban+seniority+chalquality+south,data=TrainingSet)
+summary(mod.3)
+summary(ilogit(predict(mod.3,newdata=TestingSet)))
 
 
