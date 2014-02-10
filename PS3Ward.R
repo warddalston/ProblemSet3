@@ -347,8 +347,8 @@ RMSECalc <- function(e){
 #Author: Dalston G. Ward
 
 RMSLECalc <- function(p,y){
-  p2 <- p[!is.na(p) & !is.na(y)] #subset out the missing values from both the predictions and observed values
-  y2 <- y[!is.na(p) & !is.na(y)]
+  p2 <- p[!is.na(p)] #subset out the missing values from both the predictions and observed values
+  y2 <- y[!is.na(p)]
   LogError <- abs(log(p2+1)-log(y2+1)) # and calculate the error.
   sqrt(sum(LogError^2)/length(LogError))
 }
@@ -386,9 +386,12 @@ MRAECalc <- function(e,b,P){
 
 #This function calculates several fit statistics for multiple models at once.  
 
-FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE"),...){
-  E <- apply(P,2,AbsError,y,na.rm=TRUE) #The function starts by creating objects with the errors.  The dots allow for the specification of the na.rm= arguement in the AbsError function. Defaults to TRUE.
-  A <- apply(P,2,AbsPercentError,y,na.rm=TRUE)
+#This function allows for the calculation of several measures of fit for several sets of predictions.  The user must give as inputs a vector of observed y values and a matrix of predictions.  The number of rows in the prediction matrix and the length of the y values should be the same.  It is acceptable to have NA's in the vector of predictions, however.  It can also optionally take a vector of naive predictions, which are used in the calculation of one fit statistic.  The function calculates 6 different fit statistics: RMSE, MAD, RMSLE, MAPE, MEAPE, and MRAE.  The user can specify which of the 6 statistics to calculate; the defualt option is all six.  Additionally, the user can opt to not supply the vector of naive predictions, in which case the MRAE will not be calculated, along with the fit statistics for the naive preditions. 
+
+FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE")){
+  #The first few lines of the function create objects with the absolute errors, absolute percentage errors, and baseline errors (when these are necesssary)
+  E <- apply(P,2,AbsError,y,na.rm=TRUE)
+  A <- apply(P,2,AbsPercentError,y,na.rm=TRUE) 
   if(!is.null(r)){
   b <- AbsError(r,y)
   }
@@ -397,14 +400,15 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
   RMSE <- MAD <- RMSLE <- MAPE <- MEAPE <- MRAE <- NULL
     
   #Start calculating the fit statistics
-  if("RMSE"%in%statistic){ 
-    RMSE <- apply(E,2,RMSECalc)
+  if(is.null(r)){ #when r, the baseline predictions, are not given it calculates only the first five statistics (further subsetted by what is given as input in the "statistic" arguement).  
+  if("RMSE"%in%statistic){ #little if loops allow for the user to specify exactly which statistics to calculate.
+    RMSE <- apply(E,2,RMSECalc) #all of the statistics are calculted for multiple sets of predictions at once using apply.  
   }
   if("MAD"%in%statistic){
   MAD <- apply(E,2,median)
   }
   if("RMSLE"%in%statistic){
-  RMSLE <- apply(P,2,RMSLECalc,y) #this might now work quite right. 
+  RMSLE <- apply(P,2,RMSLECalc,y)
   }
   if("MAPE"%in%statistic){
   MAPE <- apply(A,2,MAPECalc)
@@ -412,19 +416,47 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
   if("MEAPE"%in%statistic){
   MEAPE <- apply(A,2,median)
   }
-  if("MRAE"%in%statistic & !is.null(r)){
-  MRAE <- apply(E,2,MRAECalc,b,P)
+  } else { #From here down only comes into play when r is not null!
+    MissingPrediction <- which(!complete.cases(P)) #this helps make the vector of baseline errors the same length as the more sophisticated predictions
+    
+    #The next three lines combine the two types of errors into single objects
+    E <- cbind(E,b[-MissingPrediction]) 
+    ba <- AbsPercentError(r,y,na.rm=TRUE) 
+    A <- cbind(A,ba[-MissingPrediction])
+    
+    if("RMSE"%in%statistic){ #if loops and apply are used to calculate statistics, as above
+      RMSE <- apply(E,2,RMSECalc)
+    }
+    if("MAD"%in%statistic){
+      MAD <- apply(E,2,median)
+    }
+    if("RMSLE"%in%statistic){
+      RMSLE <- c(apply(P,2,RMSLECalc,y),RMSLECalc(b,y)) #the RMSLECalc's input is slightly different from the others, so it must be calculated slightly differently. 
+    }
+    if("MAPE"%in%statistic){
+      MAPE <- apply(A,2,MAPECalc)
+    }
+    if("MEAPE"%in%statistic){
+      MEAPE <- apply(A,2,median)
+    }
+    if("MRAE"%in%statistic){
+      MRAE <- apply(E,2,MRAECalc,b,P)
+    }
   }
 
-  #this is the output. If a statistic isn't calculated, then it is still null, and as such, doesn't appear in this output 
+  #this is the output. If a statistic isn't calculated, then it is still null, and as such, doesn't appear in this output matrix
   output <- cbind(RMSE,MAD,RMSLE,MAPE,MEAPE,MRAE)
+  if(is.null(r)){ #get the row names right based on whether or not the naive model is considered
   row.names(output) <- colnames(P)
+  } else {
+  row.names(output) <- c(colnames(P),"ModNaive")
+  }
   return(output)
 }
-
-FitStatistics(Y,P,statistic=c("RMSE","MAD","MAPE"))
 
 #Create the necessary inputs:
 Y <- TestingSet[,"voteshare"]
 P <- cbind(PredMod1,PredMod2,PredMod3)
 r <- PredNaive
+
+FitStatistics(Y,P,r,statistic="MRAE") #give it a whirl.  
