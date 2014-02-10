@@ -13,7 +13,6 @@ library(plyr)
 library(doMC)
 library(multicore)
 library(foreach)
-library(lme4)
 
 ###### Section A: Sampling Distributions and P-Values #####
 
@@ -27,7 +26,7 @@ rm(filler) #remove the filler data, just to keep the workspace clean
 
 Beta <- matrix(c(1,2,0,4,0),ncol=1) # as given by Jacob
 
-# Function for creating Y value from random data and betas
+#Ycreator: Function for creating Y value from random data and betas
 
 #This function matrix multiplies data by a set of coefficients, and then adds some random noise to the resulting output.  Useful for generating simulated data for modelling exercises. 
 
@@ -50,7 +49,7 @@ dim(Yvals) #check to make sure it has the required dimensions (it does!)
 
 ### 3. Run 1,000 regressions across all of this simulated data.  Have as the output a 1000 by 6 matrix of estimated regression coefficients. 
 
-#Function for fitting and extracting coefficients from many models at once
+#CoefExtract: Function for fitting and extracting coefficients from many models at once
 
 #Function fits a regression but returns only the coefficients.  Useful when one is fitting a large number of regressions of simulated data which is contained in an array, and is interested only in the distribution of the coefficients.  It uses the arguement "i" to index over the elements of the other arguements.  
 
@@ -71,7 +70,7 @@ dim(BetaHats) #this is a 1000 by 6 matrix, as required.
 
 ### 4. Create a density plot for each of the 6 coefficients (each of which should have been estimated 1,000 times).  What does this distribution represent? 
 
-#Function for making multiple Density plots at once
+#CoefDistrPlotter: Function for making multiple Density plots at once
 
 # This function plots the sampling distributions of beta coefficients from OLS models.  It uses the basic density() function to calculate the density.  THe plot size is limited to extend just beyond the minimum and maximum values in the density.  The x-axis is built to have exactly size tick marks, evently spaced between the minimum and maximum values.  The labels are the same for every plot (I couldn't figure out a general way to make the plots say "beta_0", beta_1, etc while still using expression!)
 
@@ -102,7 +101,7 @@ apply(BetaHats,2,CoefDistrPlotter,) #apply it down the columns, should print six
 
 ### 5. Alter your code so that you now collect t-statistics for all 1,000 regressions for all siz coefficients.  
 
-#Function for fitting and extracting T-statistics from many models at once
+#TStatExtract: Function for fitting and extracting T-statistics from many models at once
 
 #Function fits a regression but returns only the coefficients.  Useful when one is fitting a large number of regressions of simulated data which is contained in an array, and is interested only in the distribution of the t-statistics.  It uses the arguement "i" to index over the elements of the other arguements.  
 
@@ -127,9 +126,18 @@ dim(Tstats) #this is a 1000 by 6 matrix, as required.
 
 ### 6. For the 1,000 regressions, calculate how many t-statistics are statistically "significant" (p<=.05) for each variable.  (Make sure you use the right degrees of freedom).  Discuss. 
 
-# Function to check how many t-statistics are statistically significant.
+#SignificanceChecker: Function to check how many t-statistics are statistically significant.
 
-#This function calculates the critical values for a two tailed t-test based on user supplied probabilities.  Defaults to p=c(0.025,0.975), or in other words, a test of significance at the .05 level.  
+#This function calculates the critical values for a two tailed t-test based on user supplied probabilities.  Defaults to p=c(0.025,0.975), or in other words, a test of significance at the .05 level.  It then tells how many test statistics are larger (or smaller) than these critical values in a vector of test statistics. 
+
+#Input: x: a vector of test statistics
+#       n: The number of observations in the model used to generate the test statistic
+#       k: The number of coefficients in the model used to generate the test statistic
+#       p: The significance levels at which to test, given in terms of probablities.  The default is a two tailed test at the .05 level; hence, it is the vector c(0.025,0.975).  The function accepts both single and two tailed tests.
+
+#Output: a scalar value with the number of test statistics which achieve "significance"
+
+#Author: Dalston G. Ward 
 
 SignificanceChecker <- function(x,n,k,p=c(.025,.975)){
   CritValue <- qt(p,n-k-1) #calculate the critical values
@@ -262,7 +270,8 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) #
 
 # I begin this problem by defining error calculting functions and fit statistic calculating functions 
 
-# Function to calculate the absolute error of a prediciton
+
+# AbsError: Function to calculate the absolute error of a prediciton
 
 #This function calculates the absolute errors of a model's predictions in comparison to observed y values.  It does this according to the formula e = |p-y| where e is the error, p is the prediction, and y is observed.  
 
@@ -273,8 +282,6 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) #
 #output: a vector of errors of length n minus any NA's in p and y when N (or length n when na.rm=FALSE)
 
 #Author: Dalston G. Ward 
-p <- PredMod1
-y <- TestingSet[,"voteshare"]
 
 AbsError <- function(p,y,na.rm=TRUE){
   if(na.rm==TRUE){
@@ -292,7 +299,7 @@ AbsError <- function(p,y,na.rm=TRUE){
 
 sum(is.na(AbsError(P[,1],Y))) # no missing values.  This is a good sign.  
 
-#Function to calculate the absolute percentage error
+#AbsPercentError: Function to calculate the absolute percentage error
 
 #This function calculates the absolute percentage error for a model's predictions in relation to the observed y values.  It does this according to the formula a= |p-y|/|y|*100, where a is the absolute percentage error, p the predictions, and y the observed values.
 
@@ -321,7 +328,7 @@ AbsPercentError <- function(p,y,na.rm=TRUE){
 
 sum(is.na(AbsPercentError(P[,1],Y))) # no missing values.  This is a good sign.  
 
-#Function to calculate the RMSE (root mean squared error)
+#RMSECalc: Function to calculate the RMSE (root mean squared error)
 
 #This function calculates the root mean squared error of a set of predictions in comparison to the true values of y.  It does this according to the formuala sqrt(sum(e)^2/n) where e is the absolute error and n is the number of observations.  
 
@@ -335,7 +342,7 @@ RMSECalc <- function(e){
   sqrt(sum(e^2)/length(e))
 }
 
-#Function to calculate the RMSLE (root mean squared log error)
+#RMSLECalc: Function to calculate the RMSLE (root mean squared log error)
 
 ##This function calculates the root mean squared error of a set of predictions in comparison to the true values of y.  It does this according to the formuala sqrt(sum((log(p+1)-log(y+1))^2)/n) where p is the predicted value, y is the observed outcome, and n is the number of observations.  
 
@@ -353,21 +360,7 @@ RMSLECalc <- function(p,y){
   sqrt(sum(LogError^2)/length(LogError))
 }
 
-#Function to calculate the MAPE (Mean absolute percentage error)
-
-#This function calculates the mean absolute percentage error for a set of predictions from a model in comparison to the observed y values.  It does this according to the formula sum(a)/n where a is the absolute percentage error, and n is number of predictions.  
-
-#input: a: a vector of absolute percentage errors
-
-#output: a scalar value
-
-#Author: Dalston G. Ward
-
-MAPECalc <- function(a){
-  sum(a)/length(a)
-}
-
-#Function to calculate MRAE (median relative absolute error)
+#MRAECalc: Function to calculate MRAE (median relative absolute error)
 
 #This function calculates the median relative absolute error for a set of predictions from a model relative to the errors from the naive predictions.  It does this by calculating median of the relative error, given by the formula e/b, where e is the absolute error, and b is the naive error.
 
@@ -384,9 +377,18 @@ MRAECalc <- function(e,b,P){
   median(REs)
 }
 
-#This function calculates several fit statistics for multiple models at once.  
+#FitStatistics: This function calculates several fit statistics for multiple models at once.  
 
 #This function allows for the calculation of several measures of fit for several sets of predictions.  The user must give as inputs a vector of observed y values and a matrix of predictions.  The number of rows in the prediction matrix and the length of the y values should be the same.  It is acceptable to have NA's in the vector of predictions, however.  It can also optionally take a vector of naive predictions, which are used in the calculation of one fit statistic.  The function calculates 6 different fit statistics: RMSE, MAD, RMSLE, MAPE, MEAPE, and MRAE.  The user can specify which of the 6 statistics to calculate; the defualt option is all six.  Additionally, the user can opt to not supply the vector of naive predictions, in which case the MRAE will not be calculated, along with the fit statistics for the naive preditions. 
+
+#Input: y - a vector of observed outcomes
+#       P - an n by k matrix of predictions, where n is the length of y and k is the number of models used to generate predictions
+#       r - an optional vector of length n with naive predictions.  Defaults to NULL
+#       statistic - a character vector specifying which fit statistics the function should calculate.  Defaults to all fit statistics.  The options are RMSE, MAD, RMSLE, MAPE, MEAPE, and MRAE.  MRAE can only be calculated when r is not set to null
+
+#Output: the output is a matrix of fit statistics.  The number of rows is the number of models for which fit statistics are calculated, and the number of columns is the number of fit statistics calculated.  The row names correspond to model names and the column names to fit statistics.  
+
+#Author: Dalston G. Ward 
 
 FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE")){
   #The first few lines of the function create objects with the absolute errors, absolute percentage errors, and baseline errors (when these are necesssary)
@@ -411,7 +413,7 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
   RMSLE <- apply(P,2,RMSLECalc,y)
   }
   if("MAPE"%in%statistic){
-  MAPE <- apply(A,2,MAPECalc)
+  MAPE <- apply(A,2,mean)
   }
   if("MEAPE"%in%statistic){
   MEAPE <- apply(A,2,median)
@@ -434,7 +436,7 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
       RMSLE <- c(apply(P,2,RMSLECalc,y),RMSLECalc(b,y)) #the RMSLECalc's input is slightly different from the others, so it must be calculated slightly differently. 
     }
     if("MAPE"%in%statistic){
-      MAPE <- apply(A,2,MAPECalc)
+      MAPE <- apply(A,2,mean)
     }
     if("MEAPE"%in%statistic){
       MEAPE <- apply(A,2,median)
@@ -459,4 +461,4 @@ Y <- TestingSet[,"voteshare"]
 P <- cbind(PredMod1,PredMod2,PredMod3)
 r <- PredNaive
 
-FitStatistics(Y,P,r,statistic="MRAE") #give it a whirl.  
+FitStatistics(Y,P,r,statistic="MAPE") #give it a whirl.  
