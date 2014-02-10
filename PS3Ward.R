@@ -191,14 +191,17 @@ boxplot(OriginalTimeDist,ParallelTimeDist,names=c("Normal","Parallel"),main="Box
 #a. Begin by reading in the data from Jacob's website. 
 StepData <- read.table("incumbents_0.txt",header=TRUE,sep="\t",row.names=1,stringsAsFactors=FALSE) 
 
-#b. make the partitions as required.
+#b Casewise delete all observations with a missing value for the outcome variable
+StepData <- StepData[!is.na(StepData$voteshare),]
+
+#c. make the partitions as required.
 
 Training <- sample(1:nrow(StepData),nrow(StepData)/2,replace=FALSE) #pick out half of the observations in the data at random to be in the training set.
 
 TrainingSet <- StepData[Training,] #Makes the training data
 TestingSet <- StepData[-Training,] #everything that isn't training is testing. 
 
-nrow(TrainingSet)+nrow(TestingSet) #Check that every observation of the origninal 6687 ended up in one of the two data sets.  Looks good.  
+nrow(TrainingSet)+nrow(TestingSet) #Check that every observation of the origninal 6562 ended up in one of the two data sets.  Looks good.  
 any(identical(rownames(TrainingSet),rownames(TestingSet))) #Further proof of a successful partition: there are no identical row names in the two data sets.  
 
 #c. fit at least three statistical models. 
@@ -248,6 +251,13 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),length) #all three prediction 
 lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) sum(is.na(x))) # There are the same number of NA's in each vector of predictions, except for the Naive predictions, which have no missing values.  Will account for this below.    
 lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) # The NA's are the same observations in the three models, which is good.
 
+#remove this unpredictable observation from all four set of predictions
+#Missing <- which(is.na(PredMod1))
+#PredMod1 <- PredMod1[-Missing]
+#PredMod2 <- PredMod2[-Missing]
+#PredMod3 <- PredMod3[-Missing]
+#PredNaive <- PredNaive[-Missing]
+
 ### 2. Write a funciton that takes as arguments (1) a vector of "true observed outcomes (y), (2) a matrix of predictions (P), and a vector of naive forecasts (r).  The Matrix should be organized so that each column represents a single forecasting model and the rows correspond with each observation being predicted. The function should output a matrix where each column corresponds with one of the above fit statistics and each row corresponds to a model.  
 
 # I begin this problem by defining error calculting functions and fit statistic calculating functions 
@@ -263,11 +273,13 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) #
 #output: a vector of errors of length n minus any NA's in p and y when N (or length n when na.rm=FALSE)
 
 #Author: Dalston G. Ward 
+p <- PredMod1
+y <- TestingSet[,"voteshare"]
 
 AbsError <- function(p,y,na.rm=TRUE){
   if(na.rm==TRUE){
-    p2 <- p[!is.na(p) & !is.na(y)] #subset out the missing values from both the predictions and observed values
-    y2 <- y[!is.na(p) & !is.na(y)]
+    p2 <- p[!is.na(p)] #subset out the missing values from both the predictions and observed values
+    y2 <- y[!is.na(p)]
     abs(p2-y2) # and calculate the error. 
   } else {
     #This little function calculates the errors or reports an NA as appropriate. 
@@ -278,7 +290,7 @@ AbsError <- function(p,y,na.rm=TRUE){
   }
 }
 
-length(is.na(AbsError(P[,1],Y,na.rm=TRUE)))
+sum(is.na(AbsError(P[,1],Y))) # no missing values.  This is a good sign.  
 
 #Function to calculate the absolute percentage error
 
@@ -307,6 +319,7 @@ AbsPercentError <- function(p,y,na.rm=TRUE){
   }
 }
 
+sum(is.na(AbsPercentError(P[,1],Y))) # no missing values.  This is a good sign.  
 
 #Function to calculate the RMSE (root mean squared error)
 
@@ -319,7 +332,7 @@ AbsPercentError <- function(p,y,na.rm=TRUE){
 #Author: Dalston G. Ward
 
 RMSECalc <- function(e){
-  sqrt(sum(e^2,na.rm=TRUE)/length(e[!is.na(e)]))
+  sqrt(sum(e^2)/length(e))
 }
 
 #Function to calculate the RMSLE (root mean squared log error)
@@ -351,7 +364,7 @@ RMSLECalc <- function(p,y){
 #Author: Dalston G. Ward
 
 MAPECalc <- function(a){
-  sum(a,na.rm=TRUE)/length(a[!is.na(a)])
+  sum(a)/length(a)
 }
 
 #Function to calculate MRAE (median relative absolute error)
@@ -365,22 +378,23 @@ MAPECalc <- function(a){
 
 #Author: Dalston G. Ward
 
-MRAECalc <- function(e,b){
-  REs <- e[!is.na(e) & !is.na(y)]/b[!is.na(e) & !is.na(y)]
+MRAECalc <- function(e,b,P){
+  MissingPrediction <- which(!complete.cases(P))
+  REs <- e/b[-MissingPrediction]
   median(REs)
 }
 
 #This function calculates several fit statistics for multiple models at once.  
 
 FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE"),...){
-  E <- apply(P,2,AbsError,y,...) #The function starts by creating objects with the errors.  The dots allow for the specification of the na.rm= arguement in the AbsError function. Defaults to TRUE.
-  A <- apply(P,2,AbsPercentError,y,...)
+  E <- apply(P,2,AbsError,y,na.rm=TRUE) #The function starts by creating objects with the errors.  The dots allow for the specification of the na.rm= arguement in the AbsError function. Defaults to TRUE.
+  A <- apply(P,2,AbsPercentError,y,na.rm=TRUE)
   if(!is.null(r)){
-  b <- sapply(r,AbsError,y,...) 
+  b <- AbsError(r,y)
   }
   
   #Create an empty object for each fit statistic.  This will be useful later in putting together the output
-  RMSEs <- MADs <- RMSLEs <- MAPEs <- MEAPEs <- MRAEs <- NULL
+  RMSE <- MAD <- RMSLE <- MAPE <- MEAPE <- MRAE <- NULL
     
   #Start calculating the fit statistics
   if("RMSE"%in%statistic){ 
@@ -399,16 +413,16 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
   MEAPE <- apply(A,2,median)
   }
   if("MRAE"%in%statistic & !is.null(r)){
-  MRAE <- apply(E,2,MRAECalc,b)
+  MRAE <- apply(E,2,MRAECalc,b,P)
   }
-  
+
   #this is the output. If a statistic isn't calculated, then it is still null, and as such, doesn't appear in this output 
   output <- cbind(RMSE,MAD,RMSLE,MAPE,MEAPE,MRAE)
   row.names(output) <- colnames(P)
   return(output)
 }
 
-FitStatistics(Y,P,r=r)
+FitStatistics(Y,P,statistic=c("RMSE","MAD","MAPE"))
 
 #Create the necessary inputs:
 Y <- TestingSet[,"voteshare"]
