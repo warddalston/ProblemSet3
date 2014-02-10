@@ -318,7 +318,7 @@ AbsPercentError <- function(p,y,na.rm=TRUE){
 
 #Author: Dalston G. Ward
 
-RMSE <- function(e){
+RMSECalc <- function(e){
   sqrt(sum(e^2,na.rm=TRUE)/length(e[!is.na(e)]))
 }
 
@@ -333,7 +333,7 @@ RMSE <- function(e){
 
 #Author: Dalston G. Ward
 
-RMSLE <- function(p,y){
+RMSLECalc <- function(p,y){
   p2 <- p[!is.na(p) & !is.na(y)] #subset out the missing values from both the predictions and observed values
   y2 <- y[!is.na(p) & !is.na(y)]
   LogError <- abs(log(p2+1)-log(y2+1)) # and calculate the error.
@@ -350,7 +350,7 @@ RMSLE <- function(p,y){
 
 #Author: Dalston G. Ward
 
-MAPE <- function(a){
+MAPECalc <- function(a){
   sum(a,na.rm=TRUE)/length(a[!is.na(a)])
 }
 
@@ -365,16 +365,51 @@ MAPE <- function(a){
 
 #Author: Dalston G. Ward
 
-MRAE <- function(e,b){
-  REs <- e[!is.na(e) & !is.na(b)]/b[!is.na(e) & !is.na(b)]
+MRAECalc <- function(e,b){
+  REs <- e[!is.na(e) & !is.na(y)]/b[!is.na(e) & !is.na(y)]
   median(REs)
 }
 
 #This function calculates several fit statistics for multiple models at once.  
 
-FitStatistics <- function(y,P,r,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE")){
+FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","MEAPE","MRAE"),...){
+  E <- apply(P,2,AbsError,y,...) #The function starts by creating objects with the errors.  The dots allow for the specification of the na.rm= arguement in the AbsError function. Defaults to TRUE.
+  A <- apply(P,2,AbsPercentError,y,...)
+  if(!is.null(r)){
+  b <- sapply(r,AbsError,y,...) 
+  }
   
+  #Create an empty object for each fit statistic.  This will be useful later in putting together the output
+  RMSEs <- MADs <- RMSLEs <- MAPEs <- MEAPEs <- MRAEs <- NULL
+    
+  #Start calculating the fit statistics
+  if("RMSE"%in%statistic){ 
+    RMSE <- apply(E,2,RMSECalc)
+  }
+  if("MAD"%in%statistic){
+  MAD <- apply(E,2,median)
+  }
+  if("RMSLE"%in%statistic){
+  RMSLE <- apply(P,2,RMSLECalc,y) #this might now work quite right. 
+  }
+  if("MAPE"%in%statistic){
+  MAPE <- apply(A,2,MAPECalc)
+  }
+  if("MEAPE"%in%statistic){
+  MEAPE <- apply(A,2,median)
+  }
+  if("MRAE"%in%statistic & !is.null(r)){
+  MRAE <- apply(E,2,MRAECalc,b)
+  }
+  
+  #this is the output. If a statistic isn't calculated, then it is still null, and as such, doesn't appear in this output 
+  output <- cbind(RMSE,MAD,RMSLE,MAPE,MEAPE,MRAE)
+  row.names(output) <- colnames(P)
+  return(output)
 }
+
+FitStatistics(Y,P,r=r)
+
 #Create the necessary inputs:
 Y <- TestingSet[,"voteshare"]
 P <- cbind(PredMod1,PredMod2,PredMod3)
