@@ -95,7 +95,7 @@ CoefDistrPlotter <- function(x,i){
   return(NULL)
 }
 
-apply(BetaHats,2,CoefDistrPlotter,) #apply it down the columns, should print size plots.  
+apply(BetaHats,2,CoefDistrPlotter,) #apply it down the columns, should print six plots.  
 
 #These distributions represent the sampling distributions of the regression coefficients, beta_0 through beta_5.  
 
@@ -185,6 +185,19 @@ boxplot(OriginalTimeDist,ParallelTimeDist,names=c("Normal","Parallel"),main="Box
 ###### Section B: Calculating Fit Statistics ######
 
 
+### 1. Using the Out of Step dataset, randomly subset the data into two partitions.  Use one partition (your "training set") to build at least three statistical models where incumbent vote share is the dependent variable.  (Your statistical models can be anything you like, but have some fun with it.  R has lots of machine learning packages, etc. )
 
+#Begin by reading in the data from Jacob's website. 
+StepData <- read.table("incumbents_0.txt",header=TRUE,sep="\t",row.names=1,stringsAsFactors=FALSE) 
+
+#Now make the partitions as required.
+
+Training <- sample(1:nrow(StepData),nrow(StepData)/2,replace=FALSE) #pick out half of the observations in the data at random to be in the training set.
+
+TrainingSet <- StepData[Training,] #Makes the training data
+TestingSet <- StepData[-Training,] #everything that isn't training is testing. 
+
+nrow(TrainingSet)+nrow(TestingSet) #Check that every observation of the origninal 6687 ended up in one of the two data sets.  Looks good.  
+any(identical(rownames(TrainingSet),rownames(TestingSet))) #Further proof of a successful partition: there are no identical row names in the two data sets.  
 
 
