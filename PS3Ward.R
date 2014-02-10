@@ -248,4 +248,39 @@ lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),length) #all three prediction 
 lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) sum(is.na(x))) # There are the same number of NA's in each vector of predictions, except for the Naive predictions, which have no missing values.  Will account for this below.    
 lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) # The NA's are the same observations in the three models, which is good.
 
+### 2. Write a funciton that takes as arguments (1) a vector of "true observed outcomes (y), (2) a matrix of predictions (P), and a vector of naive forecasts (r).  The Matrix should be organized so that each column represents a single forecasting model and the rows correspond with each observation being predicted. The function should output a matrix where each column corresponds with one of the above fit statistics and each row corresponds to a model.  
 
+# I begin this problem by defining error calculting functions 
+
+# Function to calculate the absolute error of a prediciton
+
+#This function calculates the absolute errors of a model's predictions in comparison to observed y values.  It does this according to the formula e = |p-y| where e is the error, p is the prediction, and y is observed.  
+
+#input: p a vector of predictions of length n
+#       y a vector of observed values of length n
+#       na.rm=TRUE: a logicial, indicating whether or not NA's in the prediction vector should be included in the final output or should be dropped. 
+
+#output: a vector of errors of length n
+
+#Author: Dalston G. Ward 
+
+AbsError <- function(p,y,na.rm=TRUE){
+  if(na.rm==TRUE){
+    p2 <- p[!is.na(p)]
+    y2 <- y[!is.na(p)]
+    abs(p2-y2)
+  } else {
+  mapply(function(x,y){ifelse(is.na(x),NA,abs(x-y))},p,y) #this line is a mess!  It checks to see if the value in p is missing, and if it is, it codes this as NA.  If it isn't missing, it calculates the error as appropriate.  
+  }
+}
+
+sum(is.na(p))
+sum(is.na(y))
+length(is.na(AbsError(P[,1],Y,na.rm=FALSE)))
+
+sum(is.na(StepData[,"voteshare"]))
+
+#Create the necessary inputs:
+Y <- TestingSet[,"voteshare"]
+P <- cbind(PredMod1,PredMod2,PredMod3)
+r <- PredNaive
