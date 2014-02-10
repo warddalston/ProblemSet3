@@ -188,10 +188,10 @@ boxplot(OriginalTimeDist,ParallelTimeDist,names=c("Normal","Parallel"),main="Box
 
 ### 1. Using the Out of Step dataset, randomly subset the data into two partitions.  Use one partition (your "training set") to build at least three statistical models where incumbent vote share is the dependent variable.  (Your statistical models can be anything you like, but have some fun with it.  R has lots of machine learning packages, etc. )
 
-#Begin by reading in the data from Jacob's website. 
+#a. Begin by reading in the data from Jacob's website. 
 StepData <- read.table("incumbents_0.txt",header=TRUE,sep="\t",row.names=1,stringsAsFactors=FALSE) 
 
-#Now make the partitions as required.
+#b. make the partitions as required.
 
 Training <- sample(1:nrow(StepData),nrow(StepData)/2,replace=FALSE) #pick out half of the observations in the data at random to be in the training set.
 
@@ -201,17 +201,15 @@ TestingSet <- StepData[-Training,] #everything that isn't training is testing.
 nrow(TrainingSet)+nrow(TestingSet) #Check that every observation of the origninal 6687 ended up in one of the two data sets.  Looks good.  
 any(identical(rownames(TrainingSet),rownames(TestingSet))) #Further proof of a successful partition: there are no identical row names in the two data sets.  
 
-#Now, fit at least three statistical models. 
+#c. fit at least three statistical models. 
 
 #First, an OLS with a year fixed effect.  
-mod.1 <- lm(voteshare~inparty+population+urban+seniority+chalquality+south,data=TrainingSet)
-summary(mod.1)
-summary(predict(mod.1,newdata=TestingSet))
+Mod1 <- lm(voteshare~inparty+population+urban+seniority+chalquality+south,data=TrainingSet)
+summary(Mod1)
 
 #Second, a quasibinomial GLM
-mod.2 <- glm(voteshare~inparty+population+urban+seniority+chalquality+south,data=TrainingSet,family=quasibinomial)
-summary(mod.2)
-summary(predict(mod.2,newdata=TestingSet,type="response"))
+Mod2 <- glm(voteshare~inparty+population+urban+seniority+chalquality+south,data=TrainingSet,family=quasibinomial)
+summary(Mod2)
 
 #Third, an OLS with a logit transformed response
 
@@ -222,13 +220,32 @@ summary(predict(mod.2,newdata=TestingSet,type="response"))
 #input: a vector
 #output: a vector of equal length
 
-#Author: Julien J. Faraway in "Linear Models with R", Chapman & Hall/CRC, 2005. 
+#Author: copied directly from Julien J. Faraway in "Linear Models with R", Chapman & Hall/CRC, 2005. 
 logit <- function(x) log(x/(1-x))
 ilogit <- function(x) exp(x)/(1+exp(x))
 
 #Now that the funcitons are appropriately defined and documented, run the model.  
-mod.3 <- lm(logit(voteshare)~inparty+population+urban+seniority+chalquality+south,data=TrainingSet)
-summary(mod.3)
-summary(ilogit(predict(mod.3,newdata=TestingSet)))
+Mod3 <- lm(logit(voteshare)~inparty+population+urban+seniority+chalquality+south,data=TrainingSet)
+summary(Mod3)
+
+#d. make predictions and the naive forecast
+
+#First, predictions from my OLS
+PredMod1 <- predict(Mod1,newdata=TestingSet)
+
+#Second, predictions from my quasibinomial GLM
+PredMod2 <- predict(Mod2,newdata=TestingSet,type="response")
+
+#Thid, predictions from my logit transformed OLS
+PredMod3 <- ilogit(predict(Mod3,newdata=TestingSet))
+
+#Fourth, make the vector of naive forecasts 
+ModNaive <- lm(voteshare~1,data=TrainingSet) #the naive model, based on the training data
+PredNaive <- predict(ModNaive,newdata=TestingSet)
+
+#make sure the predictions worked as expected. 
+lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),length) #all three prediction vectors are the same length, which is good. 
+lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) sum(is.na(x))) # There are the same number of NA's in each vector of predictions, except for the Naive predictions, which have no missing values.  Will account for this below.    
+lapply(list(PredMod1,PredMod2,PredMod3,PredNaive),function(x) which(is.na(x))) # The NA's are the same observations in the three models, which is good.
 
 
