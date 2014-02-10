@@ -314,7 +314,7 @@ sum(is.na(AbsError(P[,1],Y))) # no missing values.  This is a good sign.
 AbsPercentError <- function(p,y,na.rm=TRUE){
   if(na.rm==TRUE){
     e <- AbsError(p,y,na.rm=TRUE) #make use of the function written above to calculate absolute errors, e (and to subset out all of those missing values) 
-    e/abs(y[!is.na(p) & !is.na(y)])*100 
+    e/abs(y[!is.na(p)])*100 
   } else {
     e <- AbsError(p,y,na.rm=FALSE)
     
@@ -461,4 +461,26 @@ Y <- TestingSet[,"voteshare"]
 P <- cbind(PredMod1,PredMod2,PredMod3)
 r <- PredNaive
 
-FitStatistics(Y,P,r,statistic="MAPE") #give it a whirl.  
+FitStatistics(Y,P,r) #give it a whirl.  
+
+###4. Evaluate the accuracy of the models you fit above using the test set.  
+
+#  Recall, I fit three models using the training data above: an ordinary OLS (Mod1), a quasibinomial GLM (Mod2), and a logit transformed OLS (Mod3).  In problems 2 and 3, above, I used the testing data to make predictions from my models, and then calculated some fit statistics for these predictions.  Now, I turn to the question: how well do my models predict the out of sample data? 
+
+#  First, consider the RMSE statistic.  This measure is in effect the standard deviation of the predictions from the observed values.  We see that all three models produce similar RMSE, around 0.09.  However, the lowest RMSE belongs to the basic OLS. 
+
+#  Second, consider the MAD.  This measures the median absolute deviation.  The statistic doesn't account for predictions that are extremely accurate or extremely inaccurate, something that can be both good and bad.  However, we see again that the OLS model has the smallest MAD, followed by the GLM, and the transformed OLS.  
+
+# Third, consider the RMSLE.  This is just like the RMSE expect that errors are logged.  One might want this statistic when non-linearities in prediction errors are suspected.  Again, we see the same pattern: the OLS model has the lowest RMSLE, followed by the GLM and the transformed OLS.  
+
+#  Fourth, consider the MAPE.  This statistic captures the average absolute percentage error, meaning an error of .01 on a value of 1 and an error of .01 on a value of 10 are no longer treated equally.  Again, we see that the OLS model does best, followed by the GLM and the transformed OLS.  
+
+# Fifth, consider the MEAPE.  This is the percentage error equivalent to MAD.  As with MAD, it disregards much of the information in the distribution of errors, for better or worse.  Aagain, the OLS performs best on this metric, followed by the GLM and the transformed OLS.  
+
+# Finally, consider the MRAE.  This is the Median relative absolute error.  This measures how much predictive accuracy the model gives us relative to the naive prediction.  As with other median based statistics, it is less sensitive to extreme values, for better or worse. A lower statistic is better here: it means that the amount of predictive power the model gives compared to naive predictions is higher. In contrast with the other statistics, we see that the transformed OLS does best, followed by the normal OLS and the GLM. 
+
+#  We also see that the Naive model performs worse than the other three models on all 6 statistics.  This is reassuring, and tells us that the models fitted above have given us some predictive power. 
+
+#  The fit statistics indicate, in aggregate, that the OLS model seems the best suited to making predictions for data in testing set.  The GLM model seems to be second best, followed by the transformed OLS model, which while still an improvement over naive predictions, is the worst model for predictions.  A possible conclusion to draw from this is that there may be occasions in which the simplest modeling approach may actually be the best.  However, this will certainly depend on the purpose of the model being fitted, the data, and the theory behind the model.  
+
+
