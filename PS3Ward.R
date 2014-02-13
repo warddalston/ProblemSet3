@@ -80,14 +80,15 @@ dim(BetaHats) #this is a 1000 by 6 matrix, as required.
 
 #Author: Dalston G. Ward 
 
-CoefDistrPlotter <- function(x,i){
+CoefDistrPlotter <- function(i,x){
+  x <- x[,i]
   xmin <- min(density(x)$x) #this and the next line sets up the plot limit and tick marks
   xmax <- max(density(x)$x)
   plot(density(x),
        xlim=c(xmin-abs(.1*xmin),xmax+abs(.1*xmax)), #just above and below the min and max! 
        xaxt="n", #suppress the default axis so that I can make my own
-       main=expression(paste("Sampling distribution of ", beta)), #I wish I could figure out a way to loop over subscripts witout a bunch of if loops for this.  
-       xlab=expression(hat(beta)),
+       main=bquote(paste("Sampling distribution of ", beta[.(i-1)])), #I wish I could figure out a way to loop over subscripts witout a bunch of if loops for this.  
+       xlab=bquote(hat(beta[.(i-1)])),
        ylab="Kernal density"
        )
   AxisLabels <- round(seq(xmin,xmax,length.out=6),2) #sequence is perfect for axes, as evenly spaces from one number to another 
@@ -95,7 +96,7 @@ CoefDistrPlotter <- function(x,i){
   return(NULL)
 }
 
-apply(BetaHats,2,CoefDistrPlotter,) #apply it down the columns, should print six plots.  
+sapply(1:6,CoefDistrPlotter,BetaHats) #apply it down the columns, should print six plots.  
 
 #These distributions represent the sampling distributions of the regression coefficients, beta_0 through beta_5.  
 
@@ -452,6 +453,19 @@ P <- cbind(PredMod1,PredMod2,PredMod3)
 r <- PredNaive
 
 FitStatistics(Y,P,r) #give it a whirl.  
+
+###3. Ensure theuser can choose which statistics to calculate and that it works without the null model
+
+### These features are already included.  Here are some examples:
+
+#no naive predictions
+FitStatistics(Y,P)
+
+#Only RMSE and MAD
+FitStatistics(Y,P,statistic=c("RMSE","MAD"))
+
+#Only MAPE, but with a baseline model
+FitStatistics(Y,P,r,statistic="MAPE")
 
 ###4. Evaluate the accuracy of the models you fit above using the test set.  
 
