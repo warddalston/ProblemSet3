@@ -385,9 +385,6 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
   #The first few lines of the function create objects with the absolute errors, absolute percentage errors, and baseline errors (when these are necesssary)
   E <- apply(P,2,AbsError,y,na.rm=TRUE)
   A <- apply(P,2,AbsPercentError,y,na.rm=TRUE) 
-  if(!is.null(r)){
-  b <- AbsError(r,y)
-  }
   
   #Create an empty object for each fit statistic.  This will be useful later in putting together the output
   RMSE <- MAD <- RMSLE <- MAPE <- MEAPE <- MRAE <- NULL
@@ -411,7 +408,7 @@ FitStatistics <- function(y,P,r=NULL,statistic=c("RMSE","MAD","RMSLE","MAPE","ME
   }
   } else { #From here down only comes into play when r is not null!
     MissingPrediction <- which(!complete.cases(P)) #this helps make the vector of baseline errors the same length as the more sophisticated predictions
-    
+    b <- AbsError(r,y) #make the errors for baseline predictions. 
     #The next three lines combine the two types of errors into single objects
     E <- cbind(E,b[-MissingPrediction]) 
     ba <- AbsPercentError(r,y,na.rm=TRUE) 
